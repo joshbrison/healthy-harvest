@@ -6,40 +6,12 @@
     <title>Healthy Harvest - Groundnut Advisory System</title>
     <link rel="stylesheet" href="style.css">
    <link rel="icon" type="image/png" sizes="32x32" href="images/ChatGPT Image Jan 8, 2026, 04_04_11 PM.png">
-    <script type="text/javascript" src="https://unpkg.com/parse/dist/parse.min.js"></script>
+    <script type="module" src="js/shared-header.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- Header/Navigation -->
-    <header class="header">
-        <div class="container">
-            <div class="logo">
-                <div class="logo-icon">🌱</div>
-                <h1>Healthy Harvest</h1>
-            </div>
-            <nav class="main-nav">
-                <ul>
-                    <li><a href="index.html" class="active">Home</a></li>
-                    <li><a href="advice.html">Get Advice</a></li>
-                    <li><a href="diagnose.html">Diagnose</a></li>
-                    <li><a href="weather.html">Weather</a></li>
-                    <li><a href="market.html">Market</a></li>
-                </ul>
-            </nav>
-            <div class="header-actions">
-                <select class="lang-select">
-                    <option value="en">EN</option>
-                    <option value="lg">LG</option>
-                </select>
-                <a href="login.html" class="btn btn-outline">Login</a>
-                <a href="login.html?register=true" class="btn btn-primary">Register</a>
-            </div>
-            <button class="mobile-menu-btn" id="mobileMenuBtn">
-                <i class="fas fa-bars"></i>
-            </button>
-        </div>
-    </header>
+    <!-- Header injected by shared-header.js -->
 
     <!-- Mobile Menu -->
     <div class="mobile-menu" id="mobileMenu">
@@ -224,7 +196,7 @@
         </div>
     </footer>
 
-    <script src="script.js"></script>
+    <script type="module" src="js/main.js"></script>
     <script src="shared-footer.js"></script>
 </body>
 </html>

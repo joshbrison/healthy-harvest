@@ -9,7 +9,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
 </head>
 <body class="dashboard">
-    <!-- Header -->
     <header class="dashboard-header">
         <div class="container">
             <div class="logo">
@@ -30,6 +29,7 @@
             </div>
         </div>
     </header>
+    <!-- Header injected by shared-header.js -->
 
     <!-- Main Content -->
     <main class="container dashboard-main">
@@ -282,6 +282,6 @@
             document.getElementById('dashboardDistrictText').textContent = district;
         })();
     </script>
-    <script src="script.js"></script>
+    <script type="module" src="js/main.js"></script>
 </body>
 </html>
