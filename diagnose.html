@@ -75,7 +75,7 @@
                 <div class="plant-selection">
                     <h4><i class="fas fa-seedling"></i> Select Plant Type</h4>
                     <div class="plant-options">
-                        <select id="plantType" class="plant-select">
+                        <select id="plantType" class="plant-select" aria-label="Plant type">
                             <option value="groundnut">🌱 Groundnut (Peanut)</option>
                             <option value="rice">🌾 Rice</option>
                             <option value="wheat">🌾 Wheat</option>
@@ -891,9 +891,19 @@
         // AI Analysis Function
         async function analyzeWithAI() {
             if (isAnalyzing) return;
-            
+
             if (selectedFiles.length === 0) {
                 alert('Please upload at least one image first.');
+                return;
+            }
+
+            // Plant-only gate: allow diagnosis only when images are likely plant images.
+            // If user uploads a non-plant (e.g., soil, stem/roots/fruit-only image, animals, tools), block and show message.
+            const plantCheck = await plantOnlyCheck();
+            if (!plantCheck.isPlant) {
+                displayNonPlantMessage(plantCheck.reason);
+                resultsSection.style.display = 'block';
+                resultsSection.scrollIntoView({ behavior: 'smooth' });
                 return;
             }
             
@@ -1200,6 +1210,147 @@
             });
         }
         
+        // Plant-only gate helpers
+        async function plantOnlyCheck() {
+            // Simple: require the user to pick a plant crop (not required by UI, but helps prevent accidental non-plant uploads).
+            if (!selectedPlantType || selectedPlantType === 'other') {
+                return {
+                    isPlant: false,
+                    reason: 'Sorry this system was only designed for plants, kindly check the image u have uploaded if its not a plant change it and if it a plant please try again thank you.'
+                };
+            }
+
+            // Heuristic: analyze image brightness/edge density via canvas to guess if it contains a plant-like texture.
+            // This is not perfect, but blocks many obvious non-plant uploads.
+            try {
+                const checks = await Promise.all(selectedFiles.slice(0, 5).map(isLikelyPlantImage));
+                const positives = checks.filter(c => c.isPlant).length;
+
+                // Require majority to be plant-like
+                if (positives >= Math.ceil(checks.length / 2)) {
+                    return { isPlant: true, reason: '' };
+                }
+
+                return {
+                    isPlant: false,
+                    reason: 'Sorry this system was only designed for plants, kindly check the image u have uploaded if its not a plant change it and if it a plant please try again thank you.'
+                };
+            } catch (e) {
+                return {
+                    isPlant: false,
+                    reason: 'Sorry this system was only designed for plants, kindly check the image u have uploaded if its not a plant change it and if it a plant please try again thank you.'
+                };
+            }
+        }
+
+        function displayNonPlantMessage(message) {
+            const resultIcon = document.getElementById('resultIcon');
+            const conditionIndicator = document.getElementById('conditionIndicator');
+            const conditionDescription = document.getElementById('conditionDescription');
+            const diseaseName = document.getElementById('diseaseName');
+            const diseaseDescription = document.getElementById('diseaseDescription');
+            const symptomsList = document.getElementById('symptomsList');
+            const treatmentAdvice = document.getElementById('treatmentAdvice');
+            const preventiveList = document.getElementById('preventiveList');
+            const confidenceValue = document.getElementById('confidenceValue');
+            const confidenceFill = document.getElementById('confidenceFill');
+
+            resultIcon.innerHTML = '<i class="fas fa-times-circle"></i>';
+            resultIcon.style.color = '#F44336';
+            conditionIndicator.innerHTML = '<span class="condition-badge critical">Invalid Image</span>';
+            conditionDescription.textContent = message;
+
+            diseaseName.textContent = 'No diagnosis performed';
+            diseaseName.style.color = '#F44336';
+            diseaseDescription.textContent = 'This diagnostic system only works for plant images.';
+
+            confidenceValue.textContent = '0%';
+            confidenceFill.style.width = '0%';
+            confidenceFill.style.background = '#9E9E9E';
+
+            symptomsList.innerHTML = '<li><i class="fas fa-times-circle"></i> Unable to process non-plant image</li>';
+            treatmentAdvice.innerHTML = '';
+            preventiveList.innerHTML = '';
+
+            // Clear chart canvas by recreating it
+            const chartCanvas = document.getElementById('severityChart');
+            if (chartCanvas) {
+                chartCanvas.getContext('2d').clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+            }
+        }
+
+        function isLikelyPlantImage(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+                        // downscale for speed
+                        const targetW = 160;
+                        const scale = targetW / img.width;
+                        canvas.width = targetW;
+                        canvas.height = Math.max(1, Math.round(img.height * scale));
+
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const data = imageData.data;
+
+                        // Features: green dominance + edge density approximation
+                        let greenSum = 0;
+                        let pixelSum = 0;
+                        let edgeCount = 0;
+                        let samples = 0;
+
+                        // Edge: simple horizontal gradient magnitude threshold sampling
+                        for (let y = 1; y < canvas.height - 1; y += 2) {
+                            for (let x = 1; x < canvas.width - 1; x += 2) {
+                                const idx = (y * canvas.width + x) * 4;
+                                const r = data[idx];
+                                const g = data[idx + 1];
+                                const b = data[idx + 2];
+
+                                // green dominance
+                                greenSum += g;
+                                pixelSum += (r + g + b);
+
+                                const idxL = (y * canvas.width + (x - 1)) * 4;
+                                const idxR = (y * canvas.width + (x + 1)) * 4;
+                                const gl = data[idxL + 1];
+                                const gr = data[idxR + 1];
+                                const grad = Math.abs(gr - gl);
+
+                                if (grad > 35) edgeCount++;
+                                samples++;
+                            }
+                        }
+
+                        const greenRatio = pixelSum === 0 ? 0 : greenSum / pixelSum; // 0..1-ish
+                        const edgeRatio = samples === 0 ? 0 : edgeCount / samples;
+
+                        // Heuristic thresholds
+                        const isPlantLike = greenRatio > 0.14 && edgeRatio > 0.05;
+
+                        resolve({
+                            isPlant: isPlantLike,
+                            greenRatio,
+                            edgeRatio
+                        });
+                    };
+                    img.onerror = function() {
+                        resolve({ isPlant: false });
+                    };
+                    img.src = e.target.result;
+                };
+                reader.onerror = function() {
+                    resolve({ isPlant: false });
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
         // Additional functions
         function saveDiagnosis() {
             alert('Diagnosis report saved successfully!');
