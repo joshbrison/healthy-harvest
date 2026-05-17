@@ -874,7 +874,7 @@
             selectedFiles.splice(index, 1);
             updatePreview();
             updateDiagnoseButton();
-        }
+        }pl
         
         function clearUploads() {
             selectedFiles = [];
@@ -897,39 +897,52 @@
                 return;
             }
 
-            // Plant-only gate: allow diagnosis only when images are likely plant images.
-            // If user uploads a non-plant (e.g., soil, stem/roots/fruit-only image, animals, tools), block and show message.
-            const plantCheck = await plantOnlyCheck();
-            if (!plantCheck.isPlant) {
-                displayNonPlantMessage(plantCheck.reason);
-                resultsSection.style.display = 'block';
-                resultsSection.scrollIntoView({ behavior: 'smooth' });
-                return;
-            }
-            
             isAnalyzing = true;
             diagnoseBtn.disabled = true;
             loadingSpinner.style.display = 'block';
-            
+
             try {
-                // Simulate API call to AI service
-                // In a real implementation, you would:
-                // 1. Upload images to your server
-                // 2. Process with AI model (TensorFlow.js, Python backend with ML model)
-                // 3. Return analysis results
-                
-                // Simulate processing time
-                await new Promise(resolve => setTimeout(resolve, 3000));
-                
-                // Generate mock analysis based on plant type
-                const analysis = generateMockAnalysis();
-                
-                // Display results
+                // Prepare form data
+                const formData = new FormData();
+                selectedFiles.forEach((file) => {
+                    formData.append('images', file);
+                });
+                formData.append('plantType', selectedPlantType);
+
+                // Send to backend
+                const response = await fetch('/api/diagnose', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+
+                if (!result.isPlant) {
+                    displayNonPlantMessage(result.message || 'This system only supports plant images.');
+                    resultsSection.style.display = 'block';
+                    resultsSection.scrollIntoView({ behavior: 'smooth' });
+                    return;
+                }
+
+                // Use real diagnosis result from backend
+                const diagnosis = result.diagnosis;
+                const analysis = {
+                    plantType: selectedPlantType,
+                    disease: {
+                        name: diagnosis.disease,
+                        confidence: diagnosis.confidence,
+                        severity: diagnosis.severity,
+                        description: diagnosis.description,
+                        symptoms: diagnosis.description ? [diagnosis.description] : [],
+                        treatment: diagnosis.treatment || [],
+                        preventive: diagnosis.preventive || []
+                    },
+                    timestamp: new Date().toISOString(),
+                    images: selectedFiles.length
+                };
                 displayResults(analysis);
-                
-                // Save to history
                 saveToHistory(analysis);
-                
+
             } catch (error) {
                 console.error('Analysis failed:', error);
                 alert('Analysis failed. Please try again.');
