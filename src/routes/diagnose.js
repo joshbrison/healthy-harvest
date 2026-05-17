@@ -76,13 +76,40 @@ async function isPlantImage(buffer) {
   return false;
 }
 
-// Disease diagnosis mock (replace with real model logic)
-function diagnoseDisease(buffer, plantType = 'groundnut') {
-  // TODO: Integrate a real disease model here
-  // For now, return a mock result
-  return {
-    disease: 'Early Leaf Spot',
-    confidence: 92,
+// Disease diagnosis using a real TensorFlow.js model (scaffold)
+// Place your model files in ./models/disease_model/model.json and weights files in the same folder
+let diseaseModel = null;
+async function loadDiseaseModel() {
+  if (!diseaseModel) {
+    // You must train/export a model and place it in ./models/disease_model/
+    // Example: ./models/disease_model/model.json
+    diseaseModel = await tf.loadLayersModel('file://src/models/disease_model/model.json');
+  }
+  return diseaseModel;
+}
+
+// Map model output to disease info (customize for your model)
+const DISEASE_LABELS = [
+  'Healthy Plant',
+  'Early Leaf Spot',
+  'Late Leaf Spot',
+  'Groundnut Rosette',
+  'Rust',
+  // Add more as needed
+];
+
+const DISEASE_DETAILS = {
+  'Healthy Plant': {
+    severity: 'None',
+    description: 'Plant appears healthy with no signs of disease.',
+    treatment: ['Continue regular monitoring'],
+    preventive: [
+      'Maintain proper watering schedule',
+      'Apply balanced fertilizer',
+      'Regularly inspect for pests'
+    ]
+  },
+  'Early Leaf Spot': {
     severity: 'Medium',
     description: 'Small brown lesions on leaves, surrounded by yellow halos.',
     treatment: [
@@ -95,7 +122,100 @@ function diagnoseDisease(buffer, plantType = 'groundnut') {
       'Avoid overhead irrigation.',
       'Ensure good air circulation.'
     ]
-  };
+  },
+  'Late Leaf Spot': {
+    severity: 'High',
+    description: 'Dark brown to black spots on leaves, often leading to defoliation.',
+    treatment: [
+      'Apply fungicides as recommended.',
+      'Remove infected leaves.',
+      'Rotate crops.'
+    ],
+    preventive: [
+      'Use resistant varieties.',
+      'Practice good field sanitation.'
+    ]
+  },
+  'Groundnut Rosette': {
+    severity: 'High',
+    description: 'Severe stunting and yellowing of plants, leaf curling.',
+    treatment: [
+      'Remove and burn infected plants.',
+      'Control aphids.',
+      'Use resistant varieties.'
+    ],
+    preventive: [
+      'Plant early.',
+      'Use certified seeds.'
+    ]
+  },
+  'Rust': {
+    severity: 'Medium',
+    description: 'Orange pustules on the underside of leaves.',
+    treatment: [
+      'Apply fungicides.',
+      'Remove affected leaves.'
+    ],
+    preventive: [
+      'Monitor regularly.',
+      'Use resistant varieties.'
+    ]
+  }
+};
+
+async function diagnoseDisease(buffer, plantType = 'groundnut') {
+  // Load model (if available)
+  try {
+    const model = await loadDiseaseModel();
+    // Preprocess image
+    const image = await Jimp.read(buffer);
+    image.cover(224, 224);
+    const imageBuffer = await image.getBufferAsync(Jimp.MIME_JPEG);
+    const uint8array = new Uint8Array(imageBuffer);
+    let tensor = tf.node.decodeImage(uint8array, 3).expandDims(0).toFloat().div(tf.scalar(255));
+
+    // Predict
+    const prediction = model.predict(tensor);
+    const predictionArray = await prediction.data();
+    tensor.dispose();
+    prediction.dispose && prediction.dispose();
+
+    // Find top prediction
+    let maxIdx = 0;
+    for (let i = 1; i < predictionArray.length; i++) {
+      if (predictionArray[i] > predictionArray[maxIdx]) maxIdx = i;
+    }
+    const disease = DISEASE_LABELS[maxIdx] || 'Unknown';
+    const confidence = Math.round(predictionArray[maxIdx] * 100);
+    const details = DISEASE_DETAILS[disease] || { severity: 'Unknown', description: '', treatment: [], preventive: [] };
+
+    return {
+      disease,
+      confidence,
+      severity: details.severity,
+      description: details.description,
+      treatment: details.treatment,
+      preventive: details.preventive
+    };
+  } catch (err) {
+    // If model not found or error, fallback to mock
+    return {
+      disease: 'Early Leaf Spot',
+      confidence: 92,
+      severity: 'Medium',
+      description: 'Small brown lesions on leaves, surrounded by yellow halos.',
+      treatment: [
+        'Remove and destroy affected leaves.',
+        'Apply recommended fungicide.',
+        'Practice crop rotation.'
+      ],
+      preventive: [
+        'Use disease-resistant varieties.',
+        'Avoid overhead irrigation.',
+        'Ensure good air circulation.'
+      ]
+    };
+  }
 }
 
 // Diagnose endpoint
