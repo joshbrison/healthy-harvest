@@ -512,31 +512,7 @@
     </style>
 </head>
 <body>
-    <!-- Header -->
-    <header class="header">
-        <div class="header-content">
-            <div class="logo">
-               <div class="logo-icon">🌱</div>
-                <span>Healthy Harvest</span>
-            </div>
-            
-            <div class="nav-links">
-                <a href="dashboard.html"><i class="fas fa-home"></i> Dashboard</a>
-                <a href="diagnose.html"><i class="fas fa-stethoscope"></i> Disease Diagnosis</a>
-                <a href="weather.html"><i class="fas fa-cloud-sun"></i> Weather</a>
-                <a href="market.html"><i class="fas fa-chart-line"></i> Market</a>
-                <a href="profile.html"><i class="fas fa-user"></i> Profile</a>
-            </div>
-            
-            <div class="user-actions">
-                <div class="user-profile">
-                    <div class="user-avatar" id="userAvatar">HH</div>
-                    <span id="userName">Healthy Harvest User</span>
-                </div>
-                <button type="button" class="logout-btn" id="logoutButton">Logout</button>
-            </div>
-        </div>
-    </header>
+    <!-- Header injected by shared-header.js -->
 
     <div class="container">
         <!-- Page Title -->
@@ -1289,5 +1265,7 @@
         // Initialize step indicator
         updateStepIndicator(1);
     </script>
+</script>
+<script type="module" src="js/main.js"></script>
 </body>
 </html>
