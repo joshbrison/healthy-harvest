@@ -30,6 +30,16 @@
     </header>
 
     <main class="container" style="padding: 40px 20px;">
+        <!-- Error Banner -->
+        <div id="errorBanner" class="error-banner" style="display:none;"></div>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="loading-overlay" style="display:none;">
+            <div class="overlay-spinner">
+                <div class="spinner"></div>
+                <p>Analyzing your plant images...</p>
+            </div>
+        </div>
         <h1 class="section-title" style="text-align: left; margin-bottom: 10px;">AI Plant Disease Diagnosis</h1>
         <p style="color: var(--text-light); margin-bottom: 30px;">Upload plant images for instant AI-powered disease detection and treatment solutions</p>
         
@@ -892,14 +902,17 @@
         async function analyzeWithAI() {
             if (isAnalyzing) return;
 
+            hideErrorBanner();
+
             if (selectedFiles.length === 0) {
-                alert('Please upload at least one image first.');
+                showErrorBanner('Please upload at least one image first.');
                 return;
             }
 
             isAnalyzing = true;
             diagnoseBtn.disabled = true;
             loadingSpinner.style.display = 'block';
+            showLoadingOverlay();
 
             try {
                 // Prepare form data
@@ -914,8 +927,10 @@
                     method: 'POST',
                     body: formData
                 });
+                if (!response.ok) {
+                    throw new Error('Server error. Please try again later.');
+                }
                 const result = await response.json();
-
 
                 if (!result.isPlant) {
                     displayNonPlantMessage(result.message || 'This system only supports plant images.');
@@ -945,13 +960,114 @@
 
             } catch (error) {
                 console.error('Analysis failed:', error);
-                alert('Analysis failed. Please try again.');
+                showErrorBanner('Analysis failed. ' + (error.message || 'Please try again.'));
             } finally {
                 isAnalyzing = false;
                 diagnoseBtn.disabled = false;
                 loadingSpinner.style.display = 'none';
+                hideLoadingOverlay();
             }
         }
+                // Error banner helpers
+                function showErrorBanner(message) {
+                    const banner = document.getElementById('errorBanner');
+                    banner.textContent = message;
+                    banner.style.display = 'block';
+                    setTimeout(() => {
+                        banner.classList.add('show');
+                    }, 10);
+                }
+                function hideErrorBanner() {
+                    const banner = document.getElementById('errorBanner');
+                    banner.classList.remove('show');
+                    setTimeout(() => {
+                        banner.style.display = 'none';
+                    }, 300);
+                }
+
+                // Loading overlay helpers
+                function showLoadingOverlay() {
+                    document.getElementById('loadingOverlay').style.display = 'flex';
+                }
+                function hideLoadingOverlay() {
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                }
+                /* Error Banner */
+                .error-banner {
+                    display: none;
+                    background: #f44336;
+                    color: #fff;
+                    padding: 16px 24px;
+                    border-radius: 8px;
+                    margin-bottom: 24px;
+                    font-weight: 600;
+                    font-size: 16px;
+                    box-shadow: 0 2px 8px rgba(244,67,54,0.08);
+                    opacity: 0;
+                    transition: opacity 0.3s;
+                    z-index: 1002;
+                    position: relative;
+                }
+                .error-banner.show {
+                    opacity: 1;
+                }
+
+                /* Loading Overlay */
+                .loading-overlay {
+                    display: none;
+                    position: fixed;
+                    top: 0; left: 0; right: 0; bottom: 0;
+                    background: rgba(255,255,255,0.85);
+                    z-index: 2000;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .overlay-spinner {
+                    text-align: center;
+                }
+                .overlay-spinner .spinner {
+                    width: 60px;
+                    height: 60px;
+                    border-width: 7px;
+                    margin-bottom: 18px;
+                }
+                .overlay-spinner p {
+                    font-size: 18px;
+                    color: #333;
+                }
+
+                /* Mobile Optimizations */
+                @media (max-width: 600px) {
+                    .container {
+                        padding: 10px !important;
+                    }
+                    .upload-section, .detailed-analysis, .treatment-section, .resources-section {
+                        padding: 16px !important;
+                    }
+                    .diagnosis-summary {
+                        grid-template-columns: 1fr !important;
+                        gap: 16px !important;
+                    }
+                    .quick-stats, .resource-cards, .diagnosis-history {
+                        grid-template-columns: 1fr !important;
+                    }
+                    .result-actions {
+                        flex-direction: column;
+                        gap: 10px;
+                    }
+                    .summary-card, .stat-card, .history-item, .resource-card {
+                        padding: 12px !important;
+                    }
+                    .treatment-step {
+                        flex-direction: column;
+                        gap: 8px;
+                        padding: 10px !important;
+                    }
+                    .modal-content {
+                        padding: 16px !important;
+                        width: 98% !important;
+                    }
+                }
         
         // Mock AI Analysis (Replace with real AI integration)
         function generateMockAnalysis() {
@@ -1029,49 +1145,51 @@
         // Display Results
         function displayResults(analysis) {
             const disease = analysis.disease;
-            
             // Update result icon and condition
             const resultIcon = document.getElementById('resultIcon');
             const conditionIndicator = document.getElementById('conditionIndicator');
-            
+            const conditionDescription = document.getElementById('conditionDescription');
+            // Animated badge and icon
             if (disease.severity === 'None') {
                 resultIcon.innerHTML = '<i class="fas fa-check-circle"></i>';
                 resultIcon.style.color = '#4CAF50';
-                conditionIndicator.innerHTML = '<span class="condition-badge healthy">Healthy</span>';
-                document.getElementById('conditionDescription').textContent = 
-                    'Your plant appears to be in excellent health with no visible diseases detected.';
+                conditionIndicator.innerHTML = '<span class="condition-badge healthy animated-badge">Healthy</span>';
+                conditionDescription.textContent = 'Your plant appears to be in excellent health with no visible diseases detected.';
             } else if (disease.severity === 'Medium') {
                 resultIcon.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
                 resultIcon.style.color = '#FF9800';
-                conditionIndicator.innerHTML = '<span class="condition-badge moderate">Moderate</span>';
-                document.getElementById('conditionDescription').textContent = 
-                    'Early signs of disease detected. Immediate attention recommended.';
+                conditionIndicator.innerHTML = '<span class="condition-badge moderate animated-badge">Moderate</span>';
+                conditionDescription.textContent = 'Early signs of disease detected. Immediate attention recommended.';
             } else {
                 resultIcon.innerHTML = '<i class="fas fa-times-circle"></i>';
                 resultIcon.style.color = '#F44336';
-                conditionIndicator.innerHTML = '<span class="condition-badge critical">Critical</span>';
-                document.getElementById('conditionDescription').textContent = 
-                    'Serious disease detected. Urgent treatment required to save your crop.';
+                conditionIndicator.innerHTML = '<span class="condition-badge critical animated-badge">Critical</span>';
+                conditionDescription.textContent = 'Serious disease detected. Urgent treatment required to save your crop.';
             }
-            
-            // Update disease information
-            document.getElementById('diseaseName').textContent = disease.name;
-            document.getElementById('diseaseName').style.color = 
-                disease.severity === 'None' ? '#4CAF50' : 
+
+            // Disease name and color
+            const diseaseNameEl = document.getElementById('diseaseName');
+            diseaseNameEl.textContent = disease.name;
+            diseaseNameEl.style.color =
+                disease.severity === 'None' ? '#4CAF50' :
                 disease.severity === 'Medium' ? '#FF9800' : '#F44336';
-            
             document.getElementById('diseaseDescription').textContent = disease.description;
-            
-            // Update confidence level
+
+            // Animated confidence bar
             const confidenceValue = document.getElementById('confidenceValue');
             const confidenceFill = document.getElementById('confidenceFill');
             confidenceValue.textContent = disease.confidence + '%';
-            confidenceFill.style.width = disease.confidence + '%';
-            confidenceFill.style.background = 
-                disease.confidence > 90 ? '#4CAF50' : 
-                disease.confidence > 70 ? '#FF9800' : '#F44336';
-            
-            // Update symptoms list
+            confidenceFill.style.transition = 'none';
+            confidenceFill.style.width = '0%';
+            setTimeout(() => {
+                confidenceFill.style.transition = 'width 1s cubic-bezier(0.4,0,0.2,1)';
+                confidenceFill.style.width = disease.confidence + '%';
+                confidenceFill.style.background =
+                    disease.confidence > 90 ? '#4CAF50' :
+                    disease.confidence > 70 ? '#FF9800' : '#F44336';
+            }, 100);
+
+            // Symptoms list
             const symptomsList = document.getElementById('symptomsList');
             symptomsList.innerHTML = '';
             disease.symptoms.forEach(symptom => {
@@ -1079,11 +1197,10 @@
                 li.innerHTML = `<i class="fas fa-check-circle"></i> ${symptom}`;
                 symptomsList.appendChild(li);
             });
-            
-            // Update treatment advice
+
+            // Treatment advice
             const treatmentAdvice = document.getElementById('treatmentAdvice');
             treatmentAdvice.innerHTML = '';
-            
             disease.treatment.forEach((step, index) => {
                 const stepDiv = document.createElement('div');
                 stepDiv.className = 'treatment-step';
@@ -1096,8 +1213,8 @@
                 `;
                 treatmentAdvice.appendChild(stepDiv);
             });
-            
-            // Update preventive measures
+
+            // Preventive measures
             const preventiveList = document.getElementById('preventiveList');
             preventiveList.innerHTML = '';
             disease.preventive.forEach(measure => {
@@ -1105,16 +1222,35 @@
                 li.innerHTML = `<i class="fas fa-check"></i> ${measure}`;
                 preventiveList.appendChild(li);
             });
-            
-            // Update severity chart
+
+            // Severity chart
             updateSeverityChart(disease.severity);
-            
-            // Show results section
+
+            // Show results section with fade-in
+            resultsSection.style.opacity = 0;
             resultsSection.style.display = 'block';
-            
+            setTimeout(() => {
+                resultsSection.style.transition = 'opacity 0.7s';
+                resultsSection.style.opacity = 1;
+            }, 50);
+
             // Scroll to results
             resultsSection.scrollIntoView({ behavior: 'smooth' });
         }
+                /* Add animated badge and fade-in for results */
+                .animated-badge {
+                    animation: pop-badge 0.7s cubic-bezier(0.4,0,0.2,1);
+                }
+                @keyframes pop-badge {
+                    0% { transform: scale(0.7); opacity: 0.2; }
+                    60% { transform: scale(1.15); opacity: 1; }
+                    100% { transform: scale(1); opacity: 1; }
+                }
+
+                #resultsSection {
+                    opacity: 0;
+                    transition: opacity 0.7s;
+                }
         
         // Update severity chart
         function updateSeverityChart(severity) {
